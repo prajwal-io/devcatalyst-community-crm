@@ -127,6 +127,12 @@ def update_event(event_id: UUID, payload: EventUpdate) -> EventResponse:
     }
     EventCreate.model_validate(merged)
 
+    if int(merged["capacity"]) < existing.active_registrations:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Capacity cannot be lower than the number of active registrations",
+        )
+
     response = (
         get_supabase_admin_client()
         .table("events")
