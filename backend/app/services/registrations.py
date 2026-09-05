@@ -74,8 +74,15 @@ def cancel_registration(event_id: UUID, current_user: CurrentUser) -> Registrati
     rows = lookup.data or []
     if not rows:
         raise HTTPException(status_code=404, detail="Registration not found")
-    if rows[0]["status"] == RegistrationStatus.CANCELLED.value:
+
+    current_status = rows[0]["status"]
+    if current_status == RegistrationStatus.CANCELLED.value:
         return RegistrationResponse.model_validate(rows[0])
+    if current_status != RegistrationStatus.REGISTERED.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only active registrations can be cancelled",
+        )
 
     response = (
         client.table("registrations")
