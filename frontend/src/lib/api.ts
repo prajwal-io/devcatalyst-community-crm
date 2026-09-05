@@ -16,27 +16,23 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const accessToken = data.session?.access_token
 
   const headers = new Headers(init.headers)
-  headers.set('Content-Type', 'application/json')
+  if (init.body !== undefined) headers.set('Content-Type', 'application/json')
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
 
-  if (accessToken) {
-    headers.set('Authorization', `Bearer ${accessToken}`)
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  })
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
 
   if (!response.ok) {
     let message = 'Request failed'
     try {
-      const body = (await response.json()) as { detail?: string }
-      message = body.detail ?? message
+      const body = (await response.json()) as { detail?: string | Array<{ msg?: string }> }
+      if (typeof body.detail === 'string') message = body.detail
+      else if (Array.isArray(body.detail)) message = body.detail.map((item) => item.msg).filter(Boolean).join(', ') || message
     } catch {
       // Keep the generic message when the response is not JSON.
     }
     throw new ApiError(message, response.status)
   }
 
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
