@@ -1,5 +1,7 @@
 # DevCatalyst Community CRM
 
+Latest release checks and remaining deployment steps: [release verification](docs/RELEASE_CHECK.md).
+
 A full-stack community event registration and CRM platform built for DevCatalyst-OSS Task 2.
 
 ## Phase 1-8 status
