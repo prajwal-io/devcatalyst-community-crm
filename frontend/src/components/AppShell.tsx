@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
+import { BrandLogo } from './BrandLogo'
 
 export function AppShell({ children }: PropsWithChildren) {
   const { profile, signOut } = useAuth()
@@ -24,8 +25,8 @@ export function AppShell({ children }: PropsWithChildren) {
       <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="topbar">
         <NavLink className="brand" to={isAdmin ? '/admin' : '/app'}>
-          <img src="/devcatalyst-logo.png" width="64" height="64" alt="DevCatalyst" />
-          <span>DevCatalyst<small>Community workspace</small></span>
+          <BrandLogo />
+          <span className="brand-caption">Community<small>Connect. Learn. Build.</small></span>
         </NavLink>
         <nav className="nav-links" aria-label="Primary navigation">
           {isAdmin ? (
