@@ -4,9 +4,11 @@ import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { StatusBadge } from '../components/StatusBadge'
 import { apiRequest } from '../lib/api'
+import { useLiveRefresh } from '../lib/useLiveQuery'
 import type { RegistrationHistoryItem, RegistrationRecord } from '../types/domain'
 
 export function MyRegistrationsPage() {
+  useLiveRefresh(() => { void load() })
   const [registrations, setRegistrations] = useState<RegistrationHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -53,7 +55,7 @@ export function MyRegistrationsPage() {
           {registrations.map((item) => (
             <article className="history-item" key={item.id}>
               <div>
-                <h2><Link to={`/app/events/${item.event.id}`}>{item.event.name}</Link></h2>
+                <h2>{item.event.name}</h2>
                 <p>{new Date(item.event.starts_at).toLocaleString()}</p>
                 <p className="muted">Registered {new Date(item.registered_at).toLocaleString()}</p>
               </div>

@@ -98,3 +98,30 @@ th { color: #666; font-size: .8rem; text-transform: uppercase; letter-spacing: .
   .details-list.large div, .details-list div { grid-template-columns: 1fr; gap: 2px; }
   .history-item { align-items: flex-start; flex-direction: column; }
 }
+
+:focus-visible { outline: 3px solid #3448a8; outline-offset: 3px; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 24px; }
+.metric { background: white; border: 1px solid #e5e5e5; border-radius: 14px; padding: 22px; }
+.metric dt { color: #555; }
+.metric dd, .metric-value { margin: 8px 0; font-size: 2.4rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.dashboard-grid h2 { margin-top: 0; }
+.dashboard-grid .button { margin-top: 22px; }
+.upcoming-list { list-style: none; padding: 0; margin: 0; }
+.upcoming-list li { display: grid; gap: 4px; padding: 16px 0; border-bottom: 1px solid #e5e5e5; }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; }
+.filter-bar label { display: grid; gap: 6px; flex: 1; min-width: 200px; font-weight: 650; }
+.pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 16px; margin: 22px 0; }
+.brand { white-space: normal; }
+.nav-links { flex-wrap: wrap; }
+.card-grid { grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); }
+@media (max-width: 1050px) {
+  .topbar { flex-wrap: wrap; }
+  .nav-links { order: 3; flex-basis: 100%; }
+}
+@media (max-width: 640px) {
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .topbar { gap: 12px; }
+  .metric { padding: 16px; }
+}

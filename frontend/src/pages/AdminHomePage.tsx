@@ -4,11 +4,13 @@ import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { StatusBadge } from '../components/StatusBadge'
 import { apiRequest } from '../lib/api'
+import { useLiveRefresh } from '../lib/useLiveQuery'
 import type { EventRecord, EventStatus } from '../types/domain'
 
 const eventStatuses: EventStatus[] = ['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED']
 
 export function AdminHomePage() {
+  useLiveRefresh(() => { void loadEvents() })
   const [events, setEvents] = useState<EventRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

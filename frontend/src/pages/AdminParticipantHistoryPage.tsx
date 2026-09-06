@@ -1,22 +1,13 @@
-import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { AppShell } from '../components/AppShell'
 import { StatusBadge } from '../components/StatusBadge'
-import { apiRequest } from '../lib/api'
+import { useLiveQuery } from '../lib/useLiveQuery'
 import type { ParticipantHistoryResponse } from '../types/domain'
 
 export function AdminParticipantHistoryPage() {
   const { participantId } = useParams()
-  const [history, setHistory] = useState<ParticipantHistoryResponse | null>(null)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!participantId) return
-    void apiRequest<ParticipantHistoryResponse>(`/api/v1/admin/participants/${participantId}/history`)
-      .then(setHistory)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Unable to load participant history'))
-  }, [participantId])
+  const { data: history, error, loading, reload } = useLiveQuery<ParticipantHistoryResponse>(`/api/v1/admin/participants/${participantId}/history`)
 
   return (
     <AppShell>
@@ -24,10 +15,10 @@ export function AdminParticipantHistoryPage() {
         <p className="eyebrow">Admin · Participant history</p>
         <h1>{history?.participant.full_name ?? 'Participant history'}</h1>
         <p>{history?.participant.email}</p>
-        <Link to="/admin">← Back to events</Link>
+        <Link to="/admin/participants">← Back to participants</Link>
       </div>
-      {error && <p className="error notice">{error}</p>}
-      {!history ? <p>Loading history…</p> : history.registrations.length === 0 ? (
+      {error && <p role="alert" className="error notice">{error} <button className="button secondary small" onClick={() => void reload()}>Retry</button></p>}
+      {loading ? <p>Loading history…</p> : !history ? null : history.registrations.length === 0 ? (
         <div className="empty-state"><h2>No event history</h2></div>
       ) : (
         <div className="history-list">

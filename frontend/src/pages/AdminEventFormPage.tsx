@@ -51,7 +51,7 @@ export function AdminEventFormPage() {
         <Link to="/admin">← Back to events</Link>
       </div>
       {error && <p className="error notice">{error}</p>}
-      {loading ? <p>Loading event…</p> : <EventForm event={event} submitting={submitting} onSubmit={saveEvent} />}
+      {loading ? <p>Loading event…</p> : eventId && !event ? <p>Event is unavailable. Return to events and try again.</p> : <EventForm event={event} submitting={submitting} onSubmit={saveEvent} />}
     </AppShell>
   )
 }

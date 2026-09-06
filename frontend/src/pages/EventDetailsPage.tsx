@@ -4,9 +4,11 @@ import { Link, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { StatusBadge } from '../components/StatusBadge'
 import { apiRequest } from '../lib/api'
+import { useLiveRefresh } from '../lib/useLiveQuery'
 import type { EventRecord, RegistrationHistoryItem, RegistrationRecord } from '../types/domain'
 
 export function EventDetailsPage() {
+  useLiveRefresh(() => { void load() })
   const { eventId } = useParams()
   const [event, setEvent] = useState<EventRecord | null>(null)
   const [registrations, setRegistrations] = useState<RegistrationHistoryItem[]>([])

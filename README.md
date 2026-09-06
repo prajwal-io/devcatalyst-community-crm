@@ -2,9 +2,9 @@
 
 A full-stack community event registration and CRM platform built for DevCatalyst-OSS Task 2.
 
-## Phase 1-5 status
+## Phase 1-8 status
 
-This repository implements the foundation and the complete Phase 1-5 workflows:
+This repository implements the foundation and Phase 1-8 workflows:
 
 - React + TypeScript + Vite frontend
 - Python + FastAPI + Pydantic backend
@@ -22,7 +22,10 @@ This repository implements the foundation and the complete Phase 1-5 workflows:
 - Atomic duplicate, deadline, capacity, and publication rules
 - Attendance outcomes and durable participant history
 
-Dashboard analytics are planned for Phase 7. Realtime tables are configured for the Phase 8 client subscriptions.
+- Searchable, paginated admin participant directory with participation filters and history
+- Admin dashboard with totals, attendance outcomes, and upcoming events
+- Realtime invalidation followed by authorized REST refreshes, with reconnect/focus and periodic fallback
+- Responsive layouts and loading, retry, error, and empty states
 
 ## Architecture
 
@@ -62,8 +65,9 @@ Create a dedicated Supabase project, then apply every file in `supabase/migratio
 2. `0002_registration_rules.sql`
 3. `20260905174458_review_hardening.sql`
 4. `20260906040403_simplify_read_policies.sql`
+5. `20260906051120_realtime_event_counts.sql`
 
-All four migrations are required. The backend registration, cancellation, and concurrency-safe event update flows depend on the RPC functions created after the initial schema.
+All five migrations are required. The backend registration, cancellation, and concurrency-safe event update flows depend on the RPC functions created after the initial schema. The final migration invalidates published event counts when registrations change without exposing other participants' registrations.
 
 The migration creates the complete Task 2 data model:
 
@@ -121,6 +125,8 @@ Useful endpoints:
 - `PATCH /api/v1/admin/registrations/{registration_id}/status` - attendance management
 - `GET /api/v1/me/registrations` - participant history
 - `GET /api/v1/admin/participants/{participant_id}/history` - admin history view
+- `GET /api/v1/admin/participants` - admin directory (`q`, `participation`, `page`, `page_size`)
+- `GET /api/v1/admin/dashboard` - admin totals, attendance rate, and upcoming published events
 - `GET /docs` - FastAPI Swagger documentation
 
 ## 4. Frontend environment
@@ -188,7 +194,7 @@ Read `docs/PHASE1_EXPLAINER.md`. It explains the Phase 1 architecture in simple 
 
 ## Dedicated CRM project and review
 
-A separate Supabase project, **DevCatalyst Community CRM**, was created in Mumbai (`ap-south-1`) on 2026-09-06. Its project reference is `dqsquaegyhqdoofqaqzn` and API URL is `https://dqsquaegyhqdoofqaqzn.supabase.co`. All four migrations above have been applied there. It is separate from BacktoBase Hacks.
+A separate Supabase project, **DevCatalyst Community CRM**, was created in Mumbai (`ap-south-1`) on 2026-09-06. Its project reference is `dqsquaegyhqdoofqaqzn` and API URL is `https://dqsquaegyhqdoofqaqzn.supabase.co`. All five migrations above have been applied there. It is separate from BacktoBase Hacks.
 
 The review fixed concurrent capacity edits, attendance restoration above capacity, cancellation overwriting finalized attendance, PATCH validation errors, auth-profile loading failures, and missing lifecycle controls. Events with any registration history cannot be deleted; use event cancellation to retain history. Final event states cannot be reopened through the API. Event cancellation closes registration but preserves each participant's existing attendance record.
 
@@ -207,4 +213,8 @@ Before serving the app:
 3. Configure Supabase Auth site/redirect URLs, sign up your own account, and promote only a trusted account with the SQL above.
 4. Configure the two Vercel project roots and their environment variables; use the deployed frontend origin for backend CORS.
 
-Realtime publication is enabled for all three tables. Frontend live subscriptions remain the planned Phase 8 work.
+Realtime subscriptions cover all three tables and refresh data through FastAPI. A 30-second fallback covers deletes and rows that become hidden by RLS. Dashboard attendance rate is attended / (attended + absent); pending and cancelled records are excluded. Directory and dashboard reads page through database responses to avoid the default row cap. These aggregates are intended for the community-scale workload; larger datasets should move aggregation and filtering into database queries.
+
+Phase 9's final end-to-end/security review and Phase 10's production Vercel deployment remain separate follow-up work.
+
+The Phase 8 security advisory check found no database-policy findings, but Supabase Auth reports leaked-password protection disabled. Review [Supabase password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) and enable it when supported by the project's plan before production.

@@ -41,6 +41,8 @@ def test_live_phase_one_to_five():
         admin_headers, participant_headers, other_headers = headers
         assert client.get("/api/v1/auth/me", headers=admin_headers).json()["role"] == "ADMIN"
         assert client.get("/api/v1/admin/events", headers=participant_headers).status_code == 403
+        assert client.get("/api/v1/admin/participants", headers=participant_headers).status_code == 403
+        assert client.get("/api/v1/admin/dashboard", headers=participant_headers).status_code == 403
         start = datetime.now(timezone.utc) + timedelta(days=3)
         payload = {
             "name": "Disposable CRM smoke test", "description": "Removed after verification",
@@ -72,6 +74,13 @@ def test_live_phase_one_to_five():
         )
         assert response.status_code == 200, response.text
         assert client.post(event_path + "/cancel", headers=participant_headers).status_code == 409
+        directory = client.get("/api/v1/admin/participants?q=Disposable", headers=admin_headers)
+        assert directory.status_code == 200, directory.text
+        assert any(row["id"] == users[1] and row["attended"] == 1 for row in directory.json()["items"])
+        overview = client.get("/api/v1/admin/dashboard", headers=admin_headers)
+        assert overview.status_code == 200, overview.text
+        assert overview.json()["attended"] >= 1
+        assert any(row["id"] == event_id for row in overview.json()["upcoming_events"])
         history = client.get("/api/v1/me/registrations", headers=participant_headers).json()
         assert any(row["event_id"] == event_id and row["status"] == "ATTENDED" for row in history)
         response = client.get(f"/api/v1/admin/participants/{users[1]}/history", headers=admin_headers)

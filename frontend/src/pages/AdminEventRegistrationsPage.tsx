@@ -4,11 +4,13 @@ import { Link, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { StatusBadge } from '../components/StatusBadge'
 import { apiRequest } from '../lib/api'
+import { useLiveRefresh } from '../lib/useLiveQuery'
 import type { AdminRegistrationView, EventRecord, RegistrationRecord, RegistrationStatus } from '../types/domain'
 
 const attendanceStatuses: RegistrationStatus[] = ['REGISTERED', 'ATTENDED', 'ABSENT', 'CANCELLED']
 
 export function AdminEventRegistrationsPage() {
+  useLiveRefresh(() => { void load() })
   const { eventId } = useParams()
   const [event, setEvent] = useState<EventRecord | null>(null)
   const [registrations, setRegistrations] = useState<AdminRegistrationView[]>([])
