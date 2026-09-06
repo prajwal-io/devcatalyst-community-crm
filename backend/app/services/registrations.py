@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -62,38 +61,26 @@ def register_for_event(event_id: UUID, current_user: CurrentUser) -> Registratio
 
 
 def cancel_registration(event_id: UUID, current_user: CurrentUser) -> RegistrationResponse:
-    client = get_supabase_admin_client()
-    lookup = (
-        client.table("registrations")
-        .select(REGISTRATION_COLUMNS)
-        .eq("event_id", str(event_id))
-        .eq("participant_id", str(current_user.id))
-        .limit(1)
-        .execute()
-    )
-    rows = lookup.data or []
-    if not rows:
-        raise HTTPException(status_code=404, detail="Registration not found")
+    try:
+        response = get_supabase_admin_client().rpc(
+            "cancel_event_registration",
+            {"p_event_id": str(event_id), "p_participant_id": str(current_user.id)},
+        ).execute()
+    except Exception as exc:
+        text = str(exc)
+        if "REGISTRATION_NOT_FOUND" in text:
+            raise HTTPException(status_code=404, detail="Registration not found") from exc
+        if "ATTENDANCE_FINALIZED" in text:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only active registrations can be cancelled",
+            ) from exc
+        raise HTTPException(status_code=503, detail="Registration could not be cancelled") from exc
 
-    current_status = rows[0]["status"]
-    if current_status == RegistrationStatus.CANCELLED.value:
-        return RegistrationResponse.model_validate(rows[0])
-    if current_status != RegistrationStatus.REGISTERED.value:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Only active registrations can be cancelled",
-        )
-
-    response = (
-        client.table("registrations")
-        .update({
-            "status": RegistrationStatus.CANCELLED.value,
-            "cancelled_at": datetime.now(timezone.utc).isoformat(),
-        })
-        .eq("id", rows[0]["id"])
-        .execute()
-    )
-    return RegistrationResponse.model_validate(response.data[0])
+    data = (response.data[0] if response.data else None) if isinstance(response.data, list) else response.data
+    if not data:
+        raise HTTPException(status_code=500, detail="Registration could not be cancelled")
+    return RegistrationResponse.model_validate(data)
 
 
 def _load_event_map(event_ids: list[str]) -> dict[str, dict]:
@@ -160,15 +147,21 @@ def list_event_registrations(event_id: UUID) -> list[AdminRegistrationView]:
 
 
 def update_attendance(registration_id: UUID, next_status: RegistrationStatus) -> RegistrationResponse:
-    client = get_supabase_admin_client()
-    lookup = client.table("registrations").select(REGISTRATION_COLUMNS).eq("id", str(registration_id)).limit(1).execute()
-    if not lookup.data:
-        raise HTTPException(status_code=404, detail="Registration not found")
-
-    payload: dict[str, str | None] = {"status": next_status.value}
-    payload["cancelled_at"] = datetime.now(timezone.utc).isoformat() if next_status == RegistrationStatus.CANCELLED else None
-    response = client.table("registrations").update(payload).eq("id", str(registration_id)).execute()
-    return RegistrationResponse.model_validate(response.data[0])
+    try:
+        response = get_supabase_admin_client().rpc(
+            "set_registration_status",
+            {"p_registration_id": str(registration_id), "p_status": next_status.value},
+        ).execute()
+    except Exception as exc:
+        if "REGISTRATION_NOT_FOUND" in str(exc):
+            raise HTTPException(status_code=404, detail="Registration not found") from exc
+        if "EVENT_FULL" in str(exc):
+            raise HTTPException(status_code=409, detail="Event capacity is full") from exc
+        raise HTTPException(status_code=503, detail="Attendance could not be updated") from exc
+    data = (response.data[0] if response.data else None) if isinstance(response.data, list) else response.data
+    if not data:
+        raise HTTPException(status_code=500, detail="Attendance could not be updated")
+    return RegistrationResponse.model_validate(data)
 
 
 def get_participant_history(participant_id: UUID) -> ParticipantHistoryResponse:

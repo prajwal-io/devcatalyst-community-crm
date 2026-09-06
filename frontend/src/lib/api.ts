@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000').replace(/\/+$/, '')
 
 export class ApiError extends Error {
   constructor(
@@ -11,9 +11,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const { data } = await supabase.auth.getSession()
-  const accessToken = data.session?.access_token
+export async function apiRequest<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  const accessToken = token ?? (await supabase.auth.getSession()).data.session?.access_token
 
   const headers = new Headers(init.headers)
   if (init.body !== undefined) headers.set('Content-Type', 'application/json')

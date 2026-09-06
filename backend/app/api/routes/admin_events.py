@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response, status
 
 from app.dependencies.auth import require_admin
 from app.models.auth import CurrentUser
-from app.models.events import AdminRegistrationView, EventCreate, EventResponse, EventUpdate
+from app.models.events import AdminRegistrationView, EventCreate, EventResponse, EventStatusUpdate, EventUpdate
 from app.services import events as event_service
 from app.services.registrations import list_event_registrations
 
@@ -45,6 +45,15 @@ def publish_event(event_id: UUID, _: CurrentUser = Depends(require_admin)) -> Ev
 @router.post("/{event_id}/unpublish", response_model=EventResponse)
 def unpublish_event(event_id: UUID, _: CurrentUser = Depends(require_admin)) -> EventResponse:
     return event_service.set_publication(event_id, False)
+
+
+@router.patch("/{event_id}/status", response_model=EventResponse)
+def update_event_status(
+    event_id: UUID,
+    payload: EventStatusUpdate,
+    _: CurrentUser = Depends(require_admin),
+) -> EventResponse:
+    return event_service.set_status(event_id, payload.status)
 
 
 @router.get("/{event_id}/registrations", response_model=list[AdminRegistrationView])

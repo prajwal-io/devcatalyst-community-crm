@@ -2,9 +2,9 @@
 
 A full-stack community event registration and CRM platform built for DevCatalyst-OSS Task 2.
 
-## Phase 1 status
+## Phase 1-5 status
 
-This repository currently implements the project foundation:
+This repository implements the foundation and the complete Phase 1-5 workflows:
 
 - React + TypeScript + Vite frontend
 - Python + FastAPI + Pydantic backend
@@ -17,8 +17,12 @@ This repository currently implements the project foundation:
 - Supabase Row Level Security policies
 - Supabase Realtime publication for Task 2 data
 - Vercel-ready frontend and backend structure
+- Admin event CRUD and lifecycle status management
+- Participant event discovery, registration, and cancellation
+- Atomic duplicate, deadline, capacity, and publication rules
+- Attendance outcomes and durable participant history
 
-Event CRUD, registration flows, attendance management, participant history, and dashboard analytics are intentionally deferred to later phases.
+Dashboard analytics are planned for Phase 7. Realtime tables are configured for the Phase 8 client subscriptions.
 
 ## Architecture
 
@@ -52,9 +56,14 @@ The frontend uses Supabase Auth for signup, login, logout, and session persisten
 
 ## 1. Create the Supabase project
 
-Create a Supabase project, then open **SQL Editor** and run:
+Create a dedicated Supabase project, then apply every file in `supabase/migrations/` in filename order:
 
-`supabase/migrations/0001_initial_schema.sql`
+1. `0001_initial_schema.sql`
+2. `0002_registration_rules.sql`
+3. `20260905174458_review_hardening.sql`
+4. `20260906040403_simplify_read_policies.sql`
+
+All four migrations are required. The backend registration, cancellation, and concurrency-safe event update flows depend on the RPC functions created after the initial schema.
 
 The migration creates the complete Task 2 data model:
 
@@ -105,7 +114,13 @@ Useful endpoints:
 
 - `GET /health` - public service health check
 - `GET /api/v1/auth/me` - current authenticated user/profile
-- `GET /api/v1/admin/test` - admin-only authorization check
+- `GET /api/v1/events` - participant-visible published events
+- `POST /api/v1/events/{event_id}/register` - atomic participant registration
+- `POST /api/v1/events/{event_id}/cancel` - safe participant cancellation
+- `/api/v1/admin/events` - admin event CRUD and lifecycle management
+- `PATCH /api/v1/admin/registrations/{registration_id}/status` - attendance management
+- `GET /api/v1/me/registrations` - participant history
+- `GET /api/v1/admin/participants/{participant_id}/history` - admin history view
 - `GET /docs` - FastAPI Swagger documentation
 
 ## 4. Frontend environment
@@ -122,7 +137,7 @@ Then run:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -170,3 +185,22 @@ Set the corresponding environment variables in each Vercel project. In productio
 ## Evaluation preparation
 
 Read `docs/PHASE1_EXPLAINER.md`. It explains the Phase 1 architecture in simple terms you can use during the DevCatalyst review.
+
+## Dedicated CRM project and review
+
+A separate Supabase project, **DevCatalyst Community CRM**, was created in Mumbai (`ap-south-1`) on 2026-09-06. Its project reference is `dqsquaegyhqdoofqaqzn` and API URL is `https://dqsquaegyhqdoofqaqzn.supabase.co`. All four migrations above have been applied there. It is separate from BacktoBase Hacks.
+
+The review fixed concurrent capacity edits, attendance restoration above capacity, cancellation overwriting finalized attendance, PATCH validation errors, auth-profile loading failures, and missing lifecycle controls. Events with any registration history cannot be deleted; use event cancellation to retain history. Final event states cannot be reopened through the API. Event cancellation closes registration but preserves each participant's existing attendance record.
+
+All data writes go through FastAPI. Authenticated Supabase clients have scoped SELECT access for Realtime; they cannot bypass API rules with direct table writes. Roles are read from server-owned profiles. Privileged RPCs are executable only by the backend service role, and security-definer helpers live in the unexposed private schema.
+
+Frontend dependencies are locked by `package-lock.json` and CI uses `npm ci`. Backend direct dependencies are pinned. CI runs backend regression tests, the frontend production build, and PostgreSQL migration/business-rule tests. The database tests use disposable fixtures and roll back; they do not send signup emails. These checks do not replace a browser login test with Supabase Auth and production Vercel configuration.
+
+Before serving the app:
+
+1. In the CRM project's API settings, copy the server-only secret/service-role key into `backend/.env` as `SUPABASE_SERVICE_ROLE_KEY`. Never commit it or put it in a Vite variable.
+2. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the same CRM project. A publishable key can be used in the existing ANON_KEY-named variables.
+3. Configure Supabase Auth site/redirect URLs, sign up your own account, and promote only a trusted account with the SQL above.
+4. Configure the two Vercel project roots and their environment variables; use the deployed frontend origin for backend CORS.
+
+Realtime publication is enabled for all three tables. Frontend live subscriptions remain the planned Phase 8 work.

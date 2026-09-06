@@ -33,38 +33,39 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadProfile(nextSession: Session | null) {
-    if (!nextSession) {
-      setProfile(null)
-      return
-    }
-
-    const currentProfile = await apiRequest<UserProfile>('/api/v1/auth/me')
-    setProfile(currentProfile)
-  }
-
   useEffect(() => {
     let mounted = true
+    let revision = 0
 
-    async function initialize() {
+    async function loadSession(nextSession: Session | null) {
+      const request = ++revision
+      setSession(nextSession)
+      setProfile(null)
+      setLoading(true)
       try {
-        const { data } = await supabase.auth.getSession()
-        if (!mounted) return
-        setSession(data.session)
-        await loadProfile(data.session)
+        if (nextSession) {
+          // Use the event's token; calling getSession inside the auth callback
+          // can wait on the same Supabase auth lock.
+          const result = await apiRequest<UserProfile>('/api/v1/auth/me', {}, nextSession.access_token)
+          if (mounted && request === revision) setProfile(result)
+        }
+      } catch {
+        if (mounted && request === revision) setProfile(null)
       } finally {
-        if (mounted) setLoading(false)
+        if (mounted && request === revision) setLoading(false)
       }
     }
 
-    void initialize()
+    void supabase.auth.getSession()
+      .then(({ data }) => {
+        if (mounted && revision === 0) void loadSession(data.session)
+      })
+      .catch(() => { if (mounted && revision === 0) setLoading(false) })
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession)
-      setLoading(true)
-      void loadProfile(nextSession).finally(() => setLoading(false))
+      if (mounted) void loadSession(nextSession)
     })
 
     return () => {
@@ -109,6 +110,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [session, profile, loading],
   )
 
+  if (!loading && session && !profile) {
+    return (
+      <main className="centered">
+        <div>
+          <p>Your account profile could not be loaded. Check that the API is available.</p>
+          <button type="button" onClick={() => window.location.reload()}>Retry</button>
+        </div>
+      </main>
+    )
+  }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

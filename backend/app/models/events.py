@@ -54,6 +54,8 @@ class EventCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_event_timing(self) -> "EventCreate":
+        if not self.name:
+            raise ValueError("Event name cannot be blank")
         if not self.location and not self.online_link:
             raise ValueError("Provide a location or online link")
         if self.ends_at is not None and self.ends_at <= self.starts_at:
@@ -93,6 +95,17 @@ class EventUpdate(BaseModel):
         if value and not value.startswith(("https://", "http://")):
             raise ValueError("Online link must start with http:// or https://")
         return value
+
+    @model_validator(mode="after")
+    def reject_null_for_required_fields(self) -> "EventUpdate":
+        for field_name in ("name", "description", "starts_at", "registration_deadline", "capacity"):
+            if field_name in self.model_fields_set and getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} cannot be null")
+        return self
+
+
+class EventStatusUpdate(BaseModel):
+    status: EventStatus
 
 
 class EventResponse(BaseModel):

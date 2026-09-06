@@ -5,6 +5,39 @@ on:
   pull_request:
 
 jobs:
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: devcatalyst_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: devcatalyst_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bootstrap Supabase-compatible PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/bootstrap.sql
+      - name: Apply migrations in order
+        run: |
+          for migration in $(find supabase/migrations -maxdepth 1 -name '*.sql' | sort); do
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Run database regression checks
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/regression.sql
+
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -28,7 +61,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install
+      - run: npm ci
       - run: npm run build
         env:
           VITE_SUPABASE_URL: https://example.supabase.co

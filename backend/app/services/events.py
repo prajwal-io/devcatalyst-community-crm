@@ -4,6 +4,7 @@ from collections import Counter
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 
 from app.core.supabase import get_supabase_admin_client
 from app.models.auth import CurrentUser
@@ -125,47 +126,70 @@ def update_event(event_id: UUID, payload: EventUpdate) -> EventResponse:
         "registration_deadline": changes.get("registration_deadline", existing.registration_deadline.isoformat()),
         "capacity": changes.get("capacity", existing.capacity),
     }
-    EventCreate.model_validate(merged)
+    try:
+        EventCreate.model_validate(merged)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail="; ".join(error["msg"] for error in exc.errors())) from exc
 
-    if int(merged["capacity"]) < existing.active_registrations:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Capacity cannot be lower than the number of active registrations",
-        )
-
-    response = (
-        get_supabase_admin_client()
-        .table("events")
-        .update(changes)
-        .eq("id", str(event_id))
-        .execute()
-    )
+    try:
+        response = get_supabase_admin_client().rpc(
+            "update_event_details",
+            {
+                "p_event_id": str(event_id),
+                "p_changes": changes,
+            },
+        ).execute()
+    except Exception as exc:
+        if "CAPACITY_BELOW_REGISTRATIONS" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Capacity cannot be lower than the number of active registrations",
+            ) from exc
+        if "EVENT_NOT_FOUND" in str(exc):
+            raise _not_found() from exc
+        if getattr(exc, "code", None) in {"23514", "23502", "22007", "22008"}:
+            raise HTTPException(status_code=422, detail="Event fields are inconsistent") from exc
+        raise HTTPException(status_code=503, detail="Event could not be updated") from exc
     if not response.data:
         raise _not_found()
-    return _with_registration_counts(response.data)[0]
+    rows = response.data if isinstance(response.data, list) else [response.data]
+    return _with_registration_counts(rows)[0]
 
 
 def delete_event(event_id: UUID) -> None:
     get_admin_event(event_id)
-    get_supabase_admin_client().table("events").delete().eq("id", str(event_id)).execute()
+    try:
+        get_supabase_admin_client().table("events").delete().eq("id", str(event_id)).execute()
+    except Exception as exc:
+        if "EVENT_HAS_REGISTRATIONS" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Events with registration history cannot be deleted; cancel the event instead",
+            ) from exc
+        raise
 
 
 def set_publication(event_id: UUID, publish: bool) -> EventResponse:
-    existing = get_admin_event(event_id)
-    if publish and existing.status in {EventStatus.COMPLETED, EventStatus.CANCELLED}:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Completed or cancelled events cannot be published",
-        )
+    return set_status(event_id, EventStatus.PUBLISHED if publish else EventStatus.DRAFT)
 
-    new_status = EventStatus.PUBLISHED.value if publish else EventStatus.DRAFT.value
-    response = (
-        get_supabase_admin_client()
-        .table("events")
-        .update({"status": new_status})
-        .eq("id", str(event_id))
-        .execute()
-    )
+
+def set_status(event_id: UUID, next_status: EventStatus) -> EventResponse:
+    existing = get_admin_event(event_id)
+    if existing.status in {EventStatus.COMPLETED, EventStatus.CANCELLED} and next_status != existing.status:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Completed or cancelled events are final")
+
+    try:
+        response = (
+            get_supabase_admin_client()
+            .table("events")
+            .update({"status": next_status.value})
+            .eq("id", str(event_id))
+            .eq("status", existing.status.value)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Event status could not be updated") from exc
     if not response.data:
-        raise _not_found()
-    return _with_registration_counts(response.data)[0]
+        raise HTTPException(status_code=409, detail="Event changed; reload and try again")
+    rows = response.data if isinstance(response.data, list) else [response.data]
+    return _with_registration_counts(rows)[0]

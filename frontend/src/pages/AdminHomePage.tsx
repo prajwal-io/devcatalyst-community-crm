@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { StatusBadge } from '../components/StatusBadge'
 import { apiRequest } from '../lib/api'
-import type { EventRecord } from '../types/domain'
+import type { EventRecord, EventStatus } from '../types/domain'
+
+const eventStatuses: EventStatus[] = ['DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED']
 
 export function AdminHomePage() {
   const [events, setEvents] = useState<EventRecord[]>([])
@@ -28,22 +30,24 @@ export function AdminHomePage() {
     void loadEvents()
   }, [])
 
-  async function togglePublication(event: EventRecord) {
+  async function changeStatus(event: EventRecord, status: EventStatus) {
     setBusyId(event.id)
     setError('')
     try {
-      const action = event.status === 'PUBLISHED' ? 'unpublish' : 'publish'
-      const updated = await apiRequest<EventRecord>(`/api/v1/admin/events/${event.id}/${action}`, { method: 'POST' })
+      const updated = await apiRequest<EventRecord>(`/api/v1/admin/events/${event.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      })
       setEvents((current) => current.map((item) => (item.id === updated.id ? updated : item)))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update event')
+      setError(err instanceof Error ? err.message : 'Unable to update event status')
     } finally {
       setBusyId(null)
     }
   }
 
   async function deleteEvent(event: EventRecord) {
-    if (!window.confirm(`Delete “${event.name}”? Its registrations will also be removed.`)) return
+    if (!window.confirm(`Delete “${event.name}”? Only events without registration history can be deleted.`)) return
     setBusyId(event.id)
     try {
       await apiRequest<void>(`/api/v1/admin/events/${event.id}`, { method: 'DELETE' })
@@ -87,14 +91,14 @@ export function AdminHomePage() {
               <div className="button-row wrap">
                 <Link className="button secondary link-button" to={`/admin/events/${event.id}/edit`}>Edit</Link>
                 <Link className="button secondary link-button" to={`/admin/events/${event.id}/registrations`}>Registrations</Link>
-                <button
-                  className="button"
+                <select
+                  aria-label={`Status for ${event.name}`}
                   disabled={busyId === event.id || event.status === 'COMPLETED' || event.status === 'CANCELLED'}
-                  type="button"
-                  onClick={() => void togglePublication(event)}
+                  value={event.status}
+                  onChange={(e) => void changeStatus(event, e.target.value as EventStatus)}
                 >
-                  {event.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
-                </button>
+                  {eventStatuses.map((status) => <option value={status} key={status}>{status}</option>)}
+                </select>
                 <button className="button danger" disabled={busyId === event.id} type="button" onClick={() => void deleteEvent(event)}>
                   Delete
                 </button>

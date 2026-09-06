@@ -79,7 +79,7 @@ export function EventDetailsPage() {
       <div className="page-heading"><Link to="/app">← Back to events</Link></div>
       {error && <p className="error notice">{error}</p>}
       {success && <p className="success notice">{success}</p>}
-      {loading || !event ? <p>Loading event…</p> : (
+      {loading ? <p>Loading event…</p> : !event ? <p>Event is unavailable.</p> : (
         <article className="detail-card">
           <div className="card-heading"><StatusBadge status={event.status} /><span className="muted">{event.available_spots} spots available</span></div>
           <h1>{event.name}</h1>
@@ -93,7 +93,7 @@ export function EventDetailsPage() {
           </dl>
           <div className="button-row">
             {activeRegistration ? (
-              <button className="button danger" disabled={busy} type="button" onClick={() => void cancel()}>Cancel registration</button>
+              registration.status === 'REGISTERED' && <button className="button danger" disabled={busy} type="button" onClick={() => void cancel()}>Cancel registration</button>
             ) : (
               <button className="button" disabled={busy || event.available_spots <= 0 || new Date(event.registration_deadline) < new Date()} type="button" onClick={() => void register()}>
                 {event.available_spots <= 0 ? 'Event full' : 'Register'}
