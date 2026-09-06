@@ -194,6 +194,10 @@ The review fixed concurrent capacity edits, attendance restoration above capacit
 
 All data writes go through FastAPI. Authenticated Supabase clients have scoped SELECT access for Realtime; they cannot bypass API rules with direct table writes. Roles are read from server-owned profiles. Privileged RPCs are executable only by the backend service role, and security-definer helpers live in the unexposed private schema.
 
+The review workspace's ignored frontend and backend environment files are configured for the dedicated project. A live smoke test passed using real Supabase Auth sessions through FastAPI, covering event publication, duplicate/full registration rejection, cancellation/re-registration, capacity changes, attendance, history, and RBAC. Disposable test accounts and events were removed afterward. Security advisors reported no findings.
+
+To rerun the live test against a dedicated test project, configure the backend environment, set `RUN_LIVE_SUPABASE=1`, and run `pytest tests/test_live_supabase.py` from `backend`. It creates and deletes only its own temporary accounts and events; it does not send signup emails. CI skips this credential-dependent test and runs the isolated regression suite instead.
+
 Frontend dependencies are locked by `package-lock.json` and CI uses `npm ci`. Backend direct dependencies are pinned. CI runs backend regression tests, the frontend production build, and PostgreSQL migration/business-rule tests. The database tests use disposable fixtures and roll back; they do not send signup emails. These checks do not replace a browser login test with Supabase Auth and production Vercel configuration.
 
 Before serving the app:
