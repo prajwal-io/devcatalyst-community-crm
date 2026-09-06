@@ -21,9 +21,11 @@ export function AppShell({ children }: PropsWithChildren) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="topbar">
         <NavLink className="brand" to={isAdmin ? '/admin' : '/app'}>
-          DevCatalyst Community CRM
+          <img src="/devcatalyst-logo.png" width="64" height="64" alt="DevCatalyst" />
+          <span>DevCatalyst<small>Community workspace</small></span>
         </NavLink>
         <nav className="nav-links" aria-label="Primary navigation">
           {isAdmin ? (
@@ -48,7 +50,8 @@ export function AppShell({ children }: PropsWithChildren) {
           </button>
         </div>
       </header>
-      <main className="page-container">{error && <p role="alert" className="error notice">{error}</p>}{children}</main>
+      <main id="main-content" className="page-container">{error && <p role="alert" className="error notice">{error}</p>}{children}</main>
+      <footer className="app-footer"><span>DevCatalyst Community</span><span>Connect. Learn. Build.</span></footer>
     </div>
   )
 }

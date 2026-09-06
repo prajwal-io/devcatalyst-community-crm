@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
+import { AuthLayout } from '../components/AuthLayout'
 
 export function LoginPage() {
   const { user, profile, loading, signIn } = useAuth()
@@ -31,30 +32,30 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
+    <AuthLayout>
       <form className="auth-card" onSubmit={handleSubmit}>
-        <p className="eyebrow">DevCatalyst Community CRM</p>
-        <h1>Sign in</h1>
-        <p>Access your participant or admin workspace.</p>
+        <p className="eyebrow">Make yourself at home</p>
+        <h1>Welcome back.</h1>
+        <p>Sign in to explore events and stay connected with your community.</p>
 
         <label>
           Email
-          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          <input type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
         </label>
 
         <label>
           Password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
         </label>
 
-        {error && <p className="error">{error}</p>}
+        {error && <p role="alert" className="error">{error}</p>}
 
-        <button type="submit" disabled={submitting}>
+        <button className="button" type="submit" disabled={submitting}>
           {submitting ? 'Signing in...' : 'Sign in'}
         </button>
 
         <p>New here? <Link to="/register">Create an account</Link></p>
       </form>
-    </main>
+    </AuthLayout>
   )
 }

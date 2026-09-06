@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
+import { AuthLayout } from '../components/AuthLayout'
 
 export function RegisterPage() {
   const { user, profile, loading, signUp } = useAuth()
@@ -49,11 +50,11 @@ export function RegisterPage() {
   }
 
   return (
-    <main className="auth-page">
+    <AuthLayout>
       <form className="auth-card" onSubmit={handleSubmit}>
-        <p className="eyebrow">Participant registration</p>
-        <h1>Create account</h1>
-        <p>New public accounts are always created as participants.</p>
+        <p className="eyebrow">There’s a place for you here</p>
+        <h1>Join the community.</h1>
+        <p>Discover events, meet fellow builders, and keep track of every experience.</p>
 
         <label>
           Full name
@@ -75,15 +76,15 @@ export function RegisterPage() {
           <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required />
         </label>
 
-        {error && <p className="error">{error}</p>}
-        {message && <p className="success">{message}</p>}
+        {error && <p role="alert" className="error">{error}</p>}
+        {message && <p role="status" className="success">{message}</p>}
 
-        <button type="submit" disabled={submitting}>
+        <button className="button" type="submit" disabled={submitting}>
           {submitting ? 'Creating account...' : 'Create participant account'}
         </button>
 
         <p>Already registered? <Link to="/login">Sign in</Link></p>
       </form>
-    </main>
+    </AuthLayout>
   )
 }
